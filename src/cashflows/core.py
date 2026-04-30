@@ -40,3 +40,32 @@ def payback_period(cashflows: Sequence[float]) -> Optional[float]:
                 return float(t)
             return (t - 1) + needed / cf
     return None
+
+
+def mirr(
+    cashflows: Sequence[float],
+    finance_rate: float,
+    reinvest_rate: float,
+) -> float:
+    n = len(cashflows) - 1
+    if n < 1:
+        raise ValueError("need at least two periods")
+    pv_neg = sum(
+        cf / (1 + finance_rate) ** t for t, cf in enumerate(cashflows) if cf < 0
+    )
+    fv_pos = sum(
+        cf * (1 + reinvest_rate) ** (n - t)
+        for t, cf in enumerate(cashflows)
+        if cf > 0
+    )
+    if pv_neg == 0 or fv_pos == 0:
+        raise ValueError("cashflows must have both inflows and outflows")
+    return (fv_pos / -pv_neg) ** (1 / n) - 1
+
+
+def profitability_index(rate: float, cashflows: Sequence[float]) -> float:
+    pv_inflows = sum(cf / (1 + rate) ** t for t, cf in enumerate(cashflows) if t > 0)
+    initial = -cashflows[0]
+    if initial <= 0:
+        raise ValueError("first cashflow must be a negative investment")
+    return pv_inflows / initial

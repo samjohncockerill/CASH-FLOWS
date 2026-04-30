@@ -1,4 +1,5 @@
-from .core import npv, irr, payback_period
+from .core import npv, irr, payback_period, mirr, profitability_index
+from .loan import amortize
 
-__all__ = ["npv", "irr", "payback_period"]
-__version__ = "0.1.0"
+__all__ = ["npv", "irr", "payback_period", "mirr", "profitability_index", "amortize"]
+__version__ = "0.2.0"
