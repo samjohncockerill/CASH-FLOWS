@@ -42,6 +42,11 @@ def main(argv=None) -> int:
     p_loan.add_argument("--years", type=float, required=True)
     p_loan.add_argument("--rows", type=int, default=12, help="Filas del cuadro a mostrar")
 
+    p_serve = sub.add_parser("serve", help="Lanza la app web local")
+    p_serve.add_argument("--host", default="127.0.0.1")
+    p_serve.add_argument("--port", type=int, default=8000)
+    p_serve.add_argument("--open", action="store_true", help="Abre el navegador automaticamente")
+
     args = parser.parse_args(argv)
     if args.no_color:
         ui.set_color(False)
@@ -70,6 +75,12 @@ def main(argv=None) -> int:
     elif args.cmd == "loan":
         summary = amortize(args.principal, args.rate, args.years)
         print(render_loan_report(summary, max_rows=args.rows))
+    elif args.cmd == "serve":
+        from .web import serve_forever
+        if args.open:
+            import webbrowser, threading
+            threading.Timer(0.5, lambda: webbrowser.open(f"http://{args.host}:{args.port}/")).start()
+        serve_forever(args.host, args.port)
     return 0
 
 

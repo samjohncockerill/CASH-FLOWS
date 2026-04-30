@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cashflows"
-version = "0.2.0"
+version = "0.3.0"
 description = "Pequena libreria de prueba para calculos de flujo de caja (NPV, IRR, payback)."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -21,6 +21,9 @@ cashflows = "cashflows.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+cashflows = ["static/*.html", "static/*.css", "static/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

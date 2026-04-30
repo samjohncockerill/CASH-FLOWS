@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cash Flow Analyzer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-0: #0b1020;
+    --bg-1: #131a2f;
+    --bg-2: #1a2340;
+    --line: #2a345a;
+    --text: #e6ecff;
+    --muted: #8e9cc4;
+    --accent: #5b8cff;
+    --accent-2: #b06bff;
+    --good: #2ecc71;
+    --bad: #ff5266;
+    --warn: #f1c40f;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: radial-gradient(ellipse at top left, #1a2340 0%, var(--bg-0) 60%);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(11,16,32,0.6);
+    backdrop-filter: blur(8px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  header .subtitle { color: var(--muted); font-size: 13px; }
+
+  nav {
+    display: flex;
+    gap: 4px;
+    padding: 0 32px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-1);
+  }
+  nav button {
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 14px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  nav button:hover { color: var(--text); }
+  nav button.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  main { padding: 24px 32px; max-width: 1200px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    margin: 0 0 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .grid { display: grid; gap: 16px; }
+  .grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
+  @media (max-width: 800px) {
+    .grid.cols-2, .grid.cols-3, .grid.cols-5 { grid-template-columns: 1fr; }
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  input[type="number"], input[type="text"] {
+    width: 100%;
+    background: var(--bg-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+
+  button.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  button.primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(91,140,255,0.3); }
+  button.primary:active { transform: translateY(0); }
+  button.ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  button.ghost:hover { color: var(--text); border-color: var(--accent); }
+
+  .flows-row {
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    gap: 8px;
+    margin-bottom: 6px;
+    align-items: center;
+  }
+  .flows-row .period { color: var(--muted); font-size: 13px; text-align: right; padding-right: 8px; }
+  .flows-row .del {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+  }
+  .flows-row .del:hover { color: var(--bad); border-color: var(--bad); }
+
+  .metric {
+    background: var(--bg-2);
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid var(--line);
+  }
+  .metric .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .metric .value { font-size: 22px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .metric .value.good { color: var(--good); }
+  .metric .value.bad { color: var(--bad); }
+  .metric .value.warn { color: var(--warn); }
+  .metric .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .verdict {
+    text-align: center;
+    padding: 24px;
+    border-radius: 12px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .verdict.good { background: rgba(46,204,113,0.15); border: 1px solid var(--good); color: var(--good); }
+  .verdict.bad { background: rgba(255,82,102,0.15); border: 1px solid var(--bad); color: var(--bad); }
+
+  .reasons { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .reasons .r { padding: 10px 14px; border-radius: 8px; font-size: 13px; background: var(--bg-2); border-left: 3px solid var(--line); }
+  .reasons .r.good { border-left-color: var(--good); }
+  .reasons .r.bad { border-left-color: var(--bad); }
+
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+  th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+  th:first-child, td:first-child { text-align: left; }
+
+  .chart-box { position: relative; height: 320px; }
+  .chart-box.tall { height: 400px; }
+
+  .error {
+    background: rgba(255,82,102,0.15);
+    border: 1px solid var(--bad);
+    color: var(--bad);
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .muted { color: var(--muted); font-size: 13px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--bg-2);
+    color: var(--muted);
+    font-size: 11px;
+    margin-left: 6px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Cash Flow Analyzer</h1>
+    <div class="subtitle">NPV - IRR - MIRR - Payback - Amortizacion - Sensibilidad</div>
+  </div>
+</header>
+
+<nav>
+  <button class="tab active" data-tab="analyze">Analisis de inversion</button>
+  <button class="tab" data-tab="loan">Prestamo / Hipoteca</button>
+  <button class="tab" data-tab="sensitivity">Sensibilidad</button>
+</nav>
+
+<main>
+
+  <!-- =================== ANALYZE =================== -->
+  <section class="panel active" id="panel-analyze">
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>Parametros</h2>
+        <label>Tasa de descuento (anual, decimal)</label>
+        <input type="number" id="rate" value="0.10" step="0.01" min="-0.99" max="5" />
+        <label style="margin-top:18px">Flujos de caja (uno por periodo)</label>
+        <div id="flows-list"></div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="ghost" id="add-flow">+ Periodo</button>
+          <button class="ghost" id="preset-1">Ejemplo: maquinaria</button>
+          <button class="ghost" id="preset-2">Ejemplo: software</button>
+        </div>
+        <div style="margin-top:20px;">
+          <button class="primary" id="run-analyze">Analizar</button>
+        </div>
+        <div id="analyze-error"></div>
+      </div>
+      <div class="card">
+        <h2>Flujos en el tiempo</h2>
+        <div class="chart-box"><canvas id="chart-flows"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card" id="analyze-results" style="display:none">
+      <h2>Metricas</h2>
+      <div class="grid cols-5" id="metrics-grid"></div>
+      <div style="margin-top:20px;" id="verdict-block"></div>
+    </div>
+
+    <div class="card" id="cumulative-card" style="display:none">
+      <h2>Caja acumulada</h2>
+      <div class="chart-box"><canvas id="chart-cumulative"></canvas></div>
+    </div>
+  </section>
+
+  <!-- =================== LOAN =================== -->
+  <section class="panel" id="panel-loan">
+    <div class="grid cols-3">
+      <div class="card">
+        <h2>Datos del prestamo</h2>
+        <label>Capital (EUR)</label>
+        <input type="number" id="loan-principal" value="200000" step="1000" min="1" />
+        <label style="margin-top:14px">Tasa anual (decimal)</label>
+        <input type="number" id="loan-rate" value="0.045" step="0.005" min="0" max="1" />
+        <label style="margin-top:14px">Plazo (anios)</label>
+        <input type="number" id="loan-years" value="30" step="1" min="1" max="50" />
+        <div style="margin-top:20px;">
+          <button class="primary" id="run-loan">Calcular</button>
+        </div>
+        <div id="loan-error"></div>
+      </div>
+      <div class="card" style="grid-column: span 2;">
+        <h2>Resumen</h2>
+        <div class="grid cols-3" id="loan-summary"></div>
+      </div>
+    </div>
+
+    <div class="card" id="loan-chart-card" style="display:none">
+      <h2>Reparto cuota: capital vs interes</h2>
+      <div class="chart-box tall"><canvas id="chart-loan"></canvas></div>
+    </div>
+
+    <div class="card" id="loan-table-card" style="display:none">
+      <h2>Cuadro de amortizacion <span class="pill" id="loan-table-info"></span></h2>
+      <div style="max-height:400px; overflow:auto;">
+        <table id="loan-table">
+          <thead>
+            <tr><th>Mes</th><th>Cuota</th><th>Interes</th><th>Capital</th><th>Saldo</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== SENSITIVITY =================== -->
+  <section class="panel" id="panel-sensitivity">
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>Parametros</h2>
+        <div class="grid cols-3">
+          <div>
+            <label>Tasa desde</label>
+            <input type="number" id="s-from" value="0" step="0.01" />
+          </div>
+          <div>
+            <label>Tasa hasta</label>
+            <input type="number" id="s-to" value="0.30" step="0.01" />
+          </div>
+          <div>
+            <label>Paso</label>
+            <input type="number" id="s-step" value="0.02" step="0.01" />
+          </div>
+        </div>
+        <label style="margin-top:14px">Flujos (separados por coma o espacio)</label>
+        <input type="text" id="s-flows" value="-1000, 400, 400, 400, 200" />
+        <div style="margin-top:20px;">
+          <button class="primary" id="run-sens">Generar curva</button>
+        </div>
+        <div id="sens-error"></div>
+      </div>
+      <div class="card">
+        <h2>NPV vs tasa de descuento</h2>
+        <div class="chart-box tall"><canvas id="chart-sens"></canvas></div>
+        <div style="margin-top:10px;" class="muted" id="sens-irr"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+const fmt = (v, d=2) => v == null || isNaN(v) ? "n/a" : v.toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d });
+const pct = (v) => v == null || isNaN(v) ? "n/a" : (v*100).toFixed(2) + " %";
+const money = (v) => v == null || isNaN(v) ? "n/a" : v.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
+
+// ---------- Tabs ----------
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  t.classList.add("active");
+  document.getElementById("panel-" + t.dataset.tab).classList.add("active");
+}));
+
+// ---------- Analyze: dynamic flow rows ----------
+const flowsList = document.getElementById("flows-list");
+function renderFlows(values) {
+  flowsList.innerHTML = "";
+  values.forEach((v, i) => {
+    const row = document.createElement("div");
+    row.className = "flows-row";
+    row.innerHTML = `
+      <div class="period">t = ${i}</div>
+      <input type="number" step="0.01" value="${v}" />
+      <button class="del" title="Eliminar">x</button>`;
+    row.querySelector(".del").addEventListener("click", () => {
+      const cur = readFlows(); cur.splice(i, 1);
+      renderFlows(cur.length ? cur : [0]);
+    });
+    flowsList.appendChild(row);
+  });
+}
+function readFlows() {
+  return [...flowsList.querySelectorAll("input")].map(i => parseFloat(i.value) || 0);
+}
+document.getElementById("add-flow").addEventListener("click", () => renderFlows([...readFlows(), 0]));
+document.getElementById("preset-1").addEventListener("click", () => {
+  document.getElementById("rate").value = "0.10";
+  renderFlows([-1000, 400, 400, 400, 200]);
+});
+document.getElementById("preset-2").addEventListener("click", () => {
+  document.getElementById("rate").value = "0.12";
+  renderFlows([-50000, 15000, 22000, 28000, 30000, 25000]);
+});
+renderFlows([-1000, 400, 400, 400, 200]);
+
+// ---------- Charts setup ----------
+Chart.defaults.color = "#8e9cc4";
+Chart.defaults.borderColor = "#2a345a";
+Chart.defaults.font.family = "Segoe UI, system-ui, sans-serif";
+
+const flowsChart = new Chart(document.getElementById("chart-flows"), {
+  type: "bar",
+  data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { ticks: { callback: v => v.toLocaleString("es-ES") } }
+    },
+    maintainAspectRatio: false,
+  }
+});
+
+let cumulativeChart = null;
+function renderCumulative(flows, cumulative) {
+  const labels = flows.map((_, i) => "t=" + i);
+  if (cumulativeChart) cumulativeChart.destroy();
+  document.getElementById("cumulative-card").style.display = "block";
+  cumulativeChart = new Chart(document.getElementById("chart-cumulative"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Saldo acumulado",
+        data: cumulative,
+        borderColor: "#5b8cff",
+        backgroundColor: "rgba(91,140,255,0.15)",
+        fill: true,
+        tension: 0.25,
+      }]
+    },
+    options: { plugins: { legend: { display: false } }, maintainAspectRatio: false }
+  });
+}
+
+function renderFlowsChart(flows) {
+  flowsChart.data.labels = flows.map((_, i) => "t=" + i);
+  flowsChart.data.datasets[0].data = flows;
+  flowsChart.data.datasets[0].backgroundColor = flows.map(v => v >= 0 ? "rgba(46,204,113,0.7)" : "rgba(255,82,102,0.7)");
+  flowsChart.update();
+}
+renderFlowsChart(readFlows());
+flowsList.addEventListener("input", () => renderFlowsChart(readFlows()));
+
+// ---------- Analyze: API ----------
+async function postJSON(url, payload) {
+  const res = await fetch(url, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload) });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { msg = (await res.json()).error || msg; } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+document.getElementById("run-analyze").addEventListener("click", async () => {
+  const errBox = document.getElementById("analyze-error");
+  errBox.innerHTML = "";
+  const rate = parseFloat(document.getElementById("rate").value);
+  const flows = readFlows();
+  try {
+    const r = await postJSON("/api/analyze", { rate, flows });
+    showAnalyzeResults(r);
+  } catch (e) {
+    errBox.innerHTML = `<div class="error" style="margin-top:12px">Error: ${e.message}</div>`;
+  }
+});
+
+function showAnalyzeResults(r) {
+  document.getElementById("analyze-results").style.display = "block";
+  const m = r.metrics;
+
+  const metricCard = (label, value, cls = "", hint = "") => `
+    <div class="metric">
+      <div class="label">${label}</div>
+      <div class="value ${cls}">${value}</div>
+      ${hint ? `<div class="hint">${hint}</div>` : ""}
+    </div>`;
+
+  document.getElementById("metrics-grid").innerHTML = [
+    metricCard("NPV", money(m.npv), m.npv > 0 ? "good" : "bad", "Valor presente neto"),
+    metricCard("IRR", pct(m.irr), m.irr != null && m.irr > r.rate ? "good" : "bad", `vs tasa ${pct(r.rate)}`),
+    metricCard("MIRR", pct(m.mirr), m.mirr != null && m.mirr > r.rate ? "good" : "bad", "Reinvertido a misma tasa"),
+    metricCard("Payback", m.payback != null ? fmt(m.payback) + " periodos" : "Nunca", m.payback != null ? "warn" : "bad"),
+    metricCard("PI", m.profitability_index != null ? fmt(m.profitability_index, 3) : "n/a",
+               m.profitability_index >= 1 ? "good" : "bad", "Indice de rentabilidad"),
+  ].join("");
+
+  const verdictBlock = document.getElementById("verdict-block");
+  const cls = r.decision === "INVERTIR" ? "good" : "bad";
+  let reasons = "";
+  reasons += `<div class="r ${m.npv > 0 ? "good" : "bad"}">${m.npv > 0 ? "[OK]" : "[X]"} NPV ${m.npv > 0 ? "positivo" : "negativo"}: ${money(m.npv)}</div>`;
+  if (m.irr != null) {
+    const ok = m.irr > r.rate;
+    reasons += `<div class="r ${ok ? "good" : "bad"}">${ok ? "[OK]" : "[X]"} IRR ${pct(m.irr)} ${ok ? ">" : "<="} tasa exigida ${pct(r.rate)}</div>`;
+  }
+  if (m.profitability_index != null) {
+    const ok = m.profitability_index >= 1;
+    reasons += `<div class="r ${ok ? "good" : "bad"}">${ok ? "[OK]" : "[X]"} Indice de rentabilidad ${fmt(m.profitability_index, 3)} ${ok ? ">=" : "<"} 1</div>`;
+  }
+  verdictBlock.innerHTML = `
+    <div class="verdict ${cls}">${r.decision}</div>
+    <div class="reasons">${reasons}</div>`;
+
+  renderCumulative(r.flows, r.cumulative);
+}
+
+// ---------- Loan ----------
+let loanChart = null;
+document.getElementById("run-loan").addEventListener("click", async () => {
+  const errBox = document.getElementById("loan-error");
+  errBox.innerHTML = "";
+  try {
+    const principal = parseFloat(document.getElementById("loan-principal").value);
+    const rate = parseFloat(document.getElementById("loan-rate").value);
+    const years = parseFloat(document.getElementById("loan-years").value);
+    const r = await postJSON("/api/loan", { principal, rate, years });
+    showLoanResults(r);
+  } catch (e) {
+    errBox.innerHTML = `<div class="error" style="margin-top:12px">Error: ${e.message}</div>`;
+  }
+});
+
+function showLoanResults(r) {
+  document.getElementById("loan-summary").innerHTML = [
+    `<div class="metric"><div class="label">Cuota mensual</div><div class="value good">${money(r.monthly_payment)}</div></div>`,
+    `<div class="metric"><div class="label">Total a pagar</div><div class="value">${money(r.total_paid)}</div></div>`,
+    `<div class="metric"><div class="label">Total intereses</div><div class="value bad">${money(r.total_interest)}</div></div>`,
+    `<div class="metric"><div class="label">Plazo</div><div class="value">${r.months} meses</div></div>`,
+    `<div class="metric"><div class="label">Sobrecoste</div><div class="value warn">${pct(r.total_interest / r.principal)}</div></div>`,
+    `<div class="metric"><div class="label">Tasa anual</div><div class="value">${pct(r.annual_rate)}</div></div>`,
+  ].join("");
+
+  document.getElementById("loan-chart-card").style.display = "block";
+  document.getElementById("loan-table-card").style.display = "block";
+
+  const labels = r.schedule.map(s => s.period);
+  const interests = r.schedule.map(s => s.interest);
+  const principals = r.schedule.map(s => s.principal);
+  if (loanChart) loanChart.destroy();
+  loanChart = new Chart(document.getElementById("chart-loan"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        { label: "Capital",  data: principals, backgroundColor: "rgba(46,204,113,0.7)", stack: "s" },
+        { label: "Interes", data: interests,  backgroundColor: "rgba(255,82,102,0.7)", stack: "s" },
+      ]
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, ticks: { autoSkip: true, maxTicksLimit: 12 } },
+        y: { stacked: true, ticks: { callback: v => v.toLocaleString("es-ES") } }
+      }
+    }
+  });
+
+  const tbody = document.querySelector("#loan-table tbody");
+  tbody.innerHTML = r.schedule_sample.map(s => `
+    <tr>
+      <td>${s.period}</td>
+      <td>${money(s.payment)}</td>
+      <td style="color:var(--bad)">${money(s.interest)}</td>
+      <td style="color:var(--good)">${money(s.principal)}</td>
+      <td>${money(s.balance)}</td>
+    </tr>`).join("");
+  document.getElementById("loan-table-info").textContent =
+    r.schedule.length > r.schedule_sample.length ? `mostrando ${r.schedule_sample.length} de ${r.schedule.length}` : `${r.schedule.length} filas`;
+}
+
+// ---------- Sensitivity ----------
+let sensChart = null;
+document.getElementById("run-sens").addEventListener("click", async () => {
+  const errBox = document.getElementById("sens-error");
+  errBox.innerHTML = "";
+  try {
+    const flows = document.getElementById("s-flows").value
+      .split(/[\s,]+/).filter(Boolean).map(parseFloat);
+    const r = await postJSON("/api/sensitivity", {
+      flows,
+      from: parseFloat(document.getElementById("s-from").value),
+      to: parseFloat(document.getElementById("s-to").value),
+      step: parseFloat(document.getElementById("s-step").value),
+    });
+    showSensResults(r);
+  } catch (e) {
+    errBox.innerHTML = `<div class="error" style="margin-top:12px">Error: ${e.message}</div>`;
+  }
+});
+
+function showSensResults(r) {
+  if (sensChart) sensChart.destroy();
+  const labels = r.points.map(p => (p.rate*100).toFixed(2) + "%");
+  const data = r.points.map(p => p.npv);
+  sensChart = new Chart(document.getElementById("chart-sens"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "NPV",
+        data,
+        borderColor: "#5b8cff",
+        backgroundColor: "rgba(91,140,255,0.15)",
+        fill: true,
+        tension: 0.2,
+        pointBackgroundColor: data.map(v => v >= 0 ? "#2ecc71" : "#ff5266"),
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => v.toLocaleString("es-ES") } }
+      }
+    }
+  });
+  document.getElementById("sens-irr").textContent =
+    r.irr != null ? `IRR (cruce con NPV=0): ${pct(r.irr)}` : "No se pudo calcular IRR para estos flujos.";
+}
+</script>
+</body>
+</html>
